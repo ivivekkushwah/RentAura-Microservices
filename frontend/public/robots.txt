@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://rentaura.vercel.app/sitemap.xml
