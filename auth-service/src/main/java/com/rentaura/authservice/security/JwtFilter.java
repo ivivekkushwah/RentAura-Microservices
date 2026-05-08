@@ -4,9 +4,12 @@ import com.rentaura.authservice.model.User;
 import com.rentaura.authservice.repo.UserRepo;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -24,35 +27,49 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // ✅ Allow preflight
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractEmail(token);
+        try {
+            String token = getTokenFromCookies(request);
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (token != null) {
+                System.out.println("TOKEN RECEIVED: " + token);
 
-            User user = userRepository.findByEmail(email)
-                    .orElse(null);
+                String email = jwtUtil.extractEmail(token);  // 🔥 focus here
+                String role = jwtUtil.extractRole(token);
 
-            if (user != null) {
+                System.out.println("EMAIL: " + email);
+                System.out.println("ROLE: " + role);
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                user, null, new ArrayList<>());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                request.setAttribute("userEmail", email);
+                request.setAttribute("userRole", role);
             }
+
+        } catch (Exception e) {
+            System.out.println("JWT ERROR: " + e.getClass().getName());
+            System.out.println("JWT MESSAGE: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // 🔥 HELPER METHOD
+    private String getTokenFromCookies(HttpServletRequest request) {
+        if (request.getCookies() == null) return null;
+
+        for (Cookie cookie : request.getCookies()) {
+            if ("token".equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }
