@@ -32,8 +32,7 @@ RentAura allows users to browse rooms, book properties, manage rentals, and inte
 * Tenant management
 * Owner profile
 * Owner settings
-* Property statistics
-* Booking analytics
+
 
 ---
 
